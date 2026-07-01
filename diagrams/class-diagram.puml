@@ -1,0 +1,196 @@
+@startuml ClassDiagram_LibrarySystem
+title Diagrama de Classes - Sistema de Gerenciamento de Biblioteca (com.biblioteca, versao refatorada)
+skinparam classAttributeIconSize 0
+hide empty members
+
+' ===================== Pacote model =====================
+package "com.biblioteca.model" {
+
+  enum TipoUsuario {
+    ADMIN
+    ESTUDANTE
+    PROFESSOR
+    -limiteEmprestimos : int
+    +getLimiteEmprestimos() : int
+  }
+
+  abstract class Recurso {
+    -id : int
+    -nome : String
+    +{abstract} podeSerEmprestado() : boolean
+    +getId() : int
+    +getNome() : String
+  }
+
+  abstract class RecursoEmprestavel {
+    -idUsuarioEmprestou : int
+    -dataEmprestimo : LocalDate
+    -dataDevolucao : LocalDate
+    -disponivel : boolean
+    +podeSerEmprestado() : boolean
+    +emprestar(idUsuario, diasPrazo) : void
+    +devolver() : void
+    +estaEmprestadoPor(idUsuario) : boolean
+    +estaAtrasado() : boolean
+    +diasDeAtraso() : long
+    +{abstract} calcularMulta() : long
+    +{abstract} getPrazoPara(tipo) : int
+  }
+
+  class Livro {
+    -PRAZO_ESTUDANTE_DIAS : int = 15
+    -PRAZO_PROFESSOR_DIAS : int = 30
+    -MULTA_DIARIA : int = 100
+    +getPrazoPara(tipo) : int
+    +calcularMulta() : long
+  }
+
+  class PacoteCurso {
+    -PRAZO_DIAS : int = 15
+    -MULTA_DIARIA : int = 500
+    +getPrazoPara(tipo) : int
+    +calcularMulta() : long
+  }
+
+  class Revista {
+    +podeSerEmprestado() : boolean
+  }
+
+  class Usuario {
+    -id : int
+    -nomeUsuario : String
+    -senha : String
+    -tipo : TipoUsuario
+    -recursosEmprestados : List<Integer>
+    -recursosSolicitados : List<Integer>
+    +autenticar(nome, senha) : boolean
+    +atingiuLimiteDeEmprestimos() : boolean
+    +temRecursoEmprestado(idRecurso) : boolean
+    +temSolicitacaoPendente(idRecurso) : boolean
+    +registrarEmprestimo(idRecurso) : void
+    +registrarDevolucao(idRecurso) : void
+    +adicionarSolicitacao(idRecurso) : void
+    +removerSolicitacao(idRecurso) : void
+  }
+
+  Recurso <|-- RecursoEmprestavel
+  Recurso <|-- Revista
+  RecursoEmprestavel <|-- Livro
+  RecursoEmprestavel <|-- PacoteCurso
+  Usuario "*" --> "1" TipoUsuario : tipo
+}
+
+' ===================== Pacote service =====================
+package "com.biblioteca.service" {
+
+  class RepositorioRecursos {
+    -{static} proximoId : int
+    -recursos : List<Recurso>
+    +proximoId() : int
+    +adicionar(r) : void
+    +remover(id) : boolean
+    +buscarPorId(id) : Optional<Recurso>
+    +buscarPorNome(nome) : List<Recurso>
+    +listar() : List<Recurso>
+  }
+
+  class RepositorioUsuarios {
+    -{static} proximoId : int
+    -usuarios : List<Usuario>
+    +proximoId() : int
+    +salvar(u) : void
+    +remover(id) : boolean
+    +buscarPorId(id) : Optional<Usuario>
+    +buscarPorNome(nome) : Optional<Usuario>
+    +existeComNome(nome) : boolean
+    +listar() : List<Usuario>
+  }
+
+  class AdminService {
+    +adicionarUsuario(nome, senha, tipo) : int
+    +removerUsuario(id) : boolean
+    +adicionarLivro(nome) : int
+    +adicionarPacoteCurso(nome) : int
+    +adicionarRevista(nome) : int
+    +removerRecurso(id) : boolean
+  }
+
+  class EmprestimoService {
+    +emprestar(idUsuario, idRecurso) : void
+    +devolver(idUsuario, idRecurso) : long
+    +adicionarSolicitacao(idUsuario, idRecurso) : void
+    +listarEmprestadosPor(idUsuario) : List<Integer>
+    -validarEmprestimo(usuario, recurso) : void
+    -validarDevolucao(usuario, recurso) : RecursoEmprestavel
+    -encontrarUsuario(id) : Usuario
+    -encontrarRecurso(id) : Recurso
+  }
+
+  AdminService "1" --> "1" RepositorioRecursos
+  AdminService "1" --> "1" RepositorioUsuarios
+  EmprestimoService "1" --> "1" RepositorioRecursos
+  EmprestimoService "1" --> "1" RepositorioUsuarios
+  RepositorioRecursos "1" o-- "*" com.biblioteca.model.Recurso : recursos
+  RepositorioUsuarios "1" o-- "*" com.biblioteca.model.Usuario : usuarios
+}
+
+' ===================== Pacote ui =====================
+package "com.biblioteca.ui" {
+
+  class MenuPrincipal {
+    +executar(scanner) : void
+    -autenticarEAbrirMenu(scanner, tiposPermitidos) : void
+    -tipoPermitido(tipo, permitidos) : boolean
+    -abrirMenuPara(scanner, usuario) : void
+  }
+
+  class MenuAdmin {
+    +executar() : void
+    -processar(opcao) : boolean
+    -adicionarUsuario(tipo) : void
+  }
+
+  class MenuUsuario {
+    +executar() : void
+    -processar(opcao) : boolean
+    -emprestar() : void
+    -devolver() : void
+    -solicitarRecurso() : void
+  }
+
+  class ExibidorDeRecursos {
+    +exibirRecursosEmprestados(ids) : void
+    +exibirTodosRecursos() : void
+    -exibirLinhaRecurso(numero, idRecurso) : void
+  }
+
+  MenuPrincipal "1" --> "1" RepositorioUsuarios
+  MenuPrincipal "1" --> "1" AdminService
+  MenuPrincipal "1" --> "1" EmprestimoService
+  MenuPrincipal "1" --> "1" RepositorioRecursos
+  MenuPrincipal ..> MenuAdmin : cria
+  MenuPrincipal ..> MenuUsuario : cria
+  MenuAdmin "1" --> "1" AdminService
+  MenuUsuario "1" --> "1" EmprestimoService
+  MenuUsuario "1" *-- "1" ExibidorDeRecursos
+  ExibidorDeRecursos "1" --> "1" RepositorioRecursos
+}
+
+' ===================== Main =====================
+class "com.biblioteca.Main" as Main {
+  +{static} main(args) : void
+}
+note right of Main
+  Ponto de entrada (Composition Root):
+  instancia repositorios e servicos e
+  injeta as dependencias manualmente
+  (Dependency Injection via construtor).
+end note
+
+Main ..> RepositorioRecursos : cria
+Main ..> RepositorioUsuarios : cria
+Main ..> AdminService : cria
+Main ..> EmprestimoService : cria
+Main ..> MenuPrincipal : cria
+
+@enduml

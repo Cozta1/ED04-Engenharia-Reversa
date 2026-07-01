@@ -1,0 +1,54 @@
+@startuml PackageDiagram_LibrarySystem
+title Diagrama de Pacotes - Sistema de Gerenciamento de Biblioteca (versao refatorada)
+
+package "com.biblioteca" as root {
+  class Main
+}
+
+package "com.biblioteca.model" as model {
+  class Recurso
+  class RecursoEmprestavel
+  class Livro
+  class PacoteCurso
+  class Revista
+  class Usuario
+  enum TipoUsuario
+}
+
+package "com.biblioteca.service" as service {
+  class AdminService
+  class EmprestimoService
+  class RepositorioRecursos
+  class RepositorioUsuarios
+}
+
+package "com.biblioteca.ui" as ui {
+  class MenuPrincipal
+  class MenuAdmin
+  class MenuUsuario
+  class ExibidorDeRecursos
+}
+
+root ..> service : cria/injeta
+root ..> ui : cria/injeta
+root ..> model : usa (TipoUsuario)
+
+ui ..> service : chama
+ui ..> model : usa
+
+service ..> model : manipula
+
+note right of service
+  Camada de regras de negocio.
+  Não depende de "ui" (sentido único
+  de dependência: ui -> service -> model).
+end note
+
+note bottom of model
+  Camada de domínio. Não depende de
+  nenhum outro pacote do sistema —
+  é a camada mais estável (raiz da
+  arquitetura em camadas).
+end note
+
+@enduml
